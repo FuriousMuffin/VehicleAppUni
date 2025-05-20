@@ -144,10 +144,91 @@ def show_customer_info():
             messagebox.showinfo("Клиент", info)
             break
 
+# Редактиране на информация 
+
+def open_edit_vehicle():
+    selected = tree.selection()
+    if not selected:
+        messagebox.showinfo("Редакция", "Моля изберете кола за редакция.")
+        return
+
+    item = selected[0]
+    old_values = tree.item(item, "values")
+    vin_to_edit = old_values[5]  # VIN остава уникален идентификатор
+
+    # Зареждане на превозните средства
+    vehicles = load_vehicles()
+    current_vehicle = None
+    for v in vehicles:
+        if v["vin"] == vin_to_edit:
+            current_vehicle = v
+            break
+    if not current_vehicle:
+        messagebox.showerror("Грешка", "Не е намерена избраната кола.")
+        return
+
+    # Създай нов прозорец
+    edit_window = tk.Toplevel(root)
+    edit_window.title("Редакция")
+    edit_window.geometry("450x600")
+
+    labels = {
+        "make": "Марка",
+        "model": "Модел",
+        "year": "Година",
+        "color": "Цвят",
+        "price": "Цена",
+        "vin": "Рам номер",
+        "mileage": "Пробег",
+        "fuel": "Гориво",
+        "gearbox": "Скоростна кутия",
+        "reg_number": "Рег. номер",
+        "customer_name": "Име на клиент",
+        "customer_phone": "Телефон на клиент",
+        "customer_email": "Имейл на клиент"
+    }
+
+    entries = {}
+
+    for i, key in enumerate(labels):
+        tk.Label(edit_window, text=labels[key]).grid(row=i, column=0, sticky="e", pady=5)
+        entry = tk.Entry(edit_window, width=30)
+        entry.insert(0, current_vehicle.get(key, ""))
+        entry.grid(row=i, column=1, pady=5)
+        entries[key] = entry
+
+    def save_all_edits():
+        new_data = {key: entries[key].get().strip() for key in labels}
+        if not all(new_data.values()):
+            messagebox.showwarning("Грешка", "Моля попълнете всички полета.")
+            return
+
+        # Обновяване на списъка с превозни средства
+        for idx, v in enumerate(vehicles):
+            if v["vin"] == vin_to_edit:
+                vehicles[idx] = new_data
+                break
+
+        with open(DATA_FILE, "w", encoding="utf-8") as f:
+            json.dump(vehicles, f, ensure_ascii=False, indent=2)
+
+        reload_tree()
+        edit_window.destroy()
+
+    tk.Button(edit_window, text="Запази промените", command=save_all_edits).grid(row=len(labels), column=0, columnspan=2, pady=20)
+
+
+
+
+
+
 # Бутоните
 tk.Button(root, text="Добави кола", command=open_add_vehicle_window).pack(pady=5)
-tk.Button(root, text="Изтрий кола", command=delete_selected_vehicle).pack(pady=5)
 tk.Button(root, text="Покажи клиент", command=show_customer_info).pack(pady=5)
+tk.Button(root, text="Редакция", command=open_edit_vehicle).pack(pady=5)
+tk.Button(root, text="Изтрий кола", command=delete_selected_vehicle).pack(pady=5)
+
+
 
 # Търсене
 search_frame = tk.Frame(root)
@@ -163,6 +244,10 @@ def search_vehicles():
     for v in load_vehicles():
         if query in v["make"].lower() or query in v["model"].lower():
             tree.insert("", "end", values=tuple(v[col] for col in columns))
+
+
+
+
 
 
 # Филтриране по цена
